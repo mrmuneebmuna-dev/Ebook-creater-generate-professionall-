@@ -1,0 +1,110 @@
+{
+  "name": "abdul-latif-ebook",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "openai": "^4.20.0",
+    "dotenv": "^16.3.1"
+  }
+}
+server.js
+const express = require('express');
+const cors = require('cors');
+const OpenAI = require('openai');
+require('dotenv').config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+app.post('/api/generate', async (req, res) => {
+  try {
+    const { topic, keywords, chapters = 5 } = req.body;
+    const prompt = `Write ebook about: ${topic}. Keywords: ${keywords}. Create ${chapters} chapters.`;
+    
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 2500,
+    });
+
+    res.json({ success: true, content: completion.choices[0].message.content });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const listener = app.listen(process.env.PORT || 3000, () => {
+  console.log('App running on port ' + listener.address().port);
+});
+.env
+OPENAI_API_KEY=sk-proj-apni-key-yahan
+PORT=3000
+public/index.html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Abdul Latif | AI Ebook Generator</title>
+  <style>
+    body { font-family: Arial; margin: 0; display: flex; height: 100vh; background: #f4f7f6; }
+    .sidebar { width: 300px; background: #006600; color: white; padding: 30px; }
+    .workspace { flex: 1; padding: 40px; }
+    .preview { background: white; min-height: 800px; padding: 60px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    input, textarea, select { width: 100%; padding: 12px; margin: 10px 0; border: none; border-radius: 5px; }
+    button { background: #D4AF37; color: #006600; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2 style="color: #D4AF37; text-align: center;">ABDUL LATIF<br><small>AI EBOOK CREATOR</small></h2>
+    <label>Topic:</label>
+    <input type="text" id="topic" placeholder="Enter topic">
+    <label>Keywords:</label>
+    <textarea id="keywords" rows="3"></textarea>
+    <label>Chapters:</label>
+    <select id="chapters">
+      <option value="3">3 Chapters</option>
+      <option value="5" selected>5 Chapters</option>
+      <option value="8">8 Chapters</option>
+    </select>
+    <button onclick="generateEbook()">Generate Ebook</button>
+  </div>
+  <div class="workspace">
+    <div class="preview" id="preview">
+      <h1 style="text-align: center; color: #006600; margin-top: 200px;">Ready to Create?</h1>
+    </div>
+  </div>
+  <script>
+    async function generateEbook() {
+      const topic = document.getElementById('topic').value;
+      if(!topic) return alert('Enter topic!');
+      document.getElementById('preview').innerHTML = '🤖 Generating...';
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            topic: topic,
+            keywords: document.getElementById('keywords').value,
+            chapters: document.getElementById('chapters').value
+          })
+        });
+        const data = await res.json();
+        document.getElementById('preview').innerHTML = data.content || data.error;
+      } catch(e) {
+        alert('Error: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>
